@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Control de Horarios</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+–bg: #0f0f13;
+–surface: #1a1a24;
+–surface2: #22222f;
+–border: #2e2e40;
+–accent: #6c63ff;
+–accent2: #ff6584;
+–green: #22c55e;
+–red: #ef4444;
+–orange: #f97316;
+–yellow: #eab308;
+–text: #f0f0f8;
+–text2: #9090b0;
+–radius: 14px;
+}
+
+- { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+font-family: ‘DM Sans’, sans-serif;
+background: var(–bg);
+color: var(–text);
+min-height: 100vh;
+overflow-x: hidden;
+}
+  
+/* NAV */
+nav {
+position: fixed; bottom: 0; left: 0; right: 0;
+background: var(–surface);
+border-top: 1px solid var(–border);
+display: flex;
+z-index: 100;
+padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn {
+flex: 1; display: flex; flex-direction: column; align-items: center;
+gap: 4px; padding: 10px 0; background: none; border: none;
+color: var(–text2); cursor: pointer; font-family: inherit;
+font-size: 10px; font-weight: 500; transition: color .2s;
+}
+.nav-btn.active { color: var(–accent); }
+.nav-btn svg { width: 22px; height: 22px; }
+
+/* PAGES */
+.page { display: none; padding: 16px 16px 90px; max-width: 600px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* HEADER */
+.page-header {
+background: linear-gradient(135deg, var(–accent), #a78bfa);
+border-radius: var(–radius);
+padding: 20px;
+margin-bottom: 20px;
+}
+.page-header h1 { font-size: 22px; font-weight: 700; }
+.page-header p { font-size: 13px; opacity: .8; margin-top: 4px; }
+
+/* CARDS */
+.card {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: var(–radius);
+padding: 16px;
+margin-bottom: 12px;
+}
+
+/* STAT GRID */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.stat-card {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: var(–radius);
+padding: 16px;
+text-align: center;
+}
+.stat-card .stat-icon { font-size: 24px; margin-bottom: 6px; }
+.stat-card .stat-value { font-size: 28px; font-weight: 700; }
+.stat-card .stat-label { font-size: 11px; color: var(–text2); margin-top: 2px; }
+
+/* BUTTONS */
+.btn {
+display: flex; align-items: center; justify-content: center; gap: 8px;
+padding: 13px 20px; border-radius: 12px; border: none;
+font-family: inherit; font-size: 15px; font-weight: 600;
+cursor: pointer; transition: opacity .15s, transform .1s; width: 100%;
+}
+.btn:active { transform: scale(.97); opacity: .85; }
+.btn-primary { background: var(–accent); color: #fff; }
+.btn-green   { background: var(–green);  color: #fff; }
+.btn-red     { background: var(–red);    color: #fff; }
+.btn-surface { background: var(–surface2); color: var(–text); border: 1px solid var(–border); }
+.btn-sm { padding: 8px 14px; font-size: 13px; border-radius: 9px; width: auto; }
+
+/* EMPLOYEE CARD */
+.emp-card {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: var(–radius);
+padding: 14px;
+margin-bottom: 10px;
+display: flex; align-items: center; gap: 12px;
+}
+.emp-card:active { opacity: .8; }
+.avatar {
+width: 48px; height: 48px; border-radius: 50%;
+background: linear-gradient(135deg, var(–accent), #a78bfa);
+display: flex; align-items: center; justify-content: center;
+font-weight: 700; font-size: 16px; flex-shrink: 0;
+overflow: hidden;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.emp-info { flex: 1; min-width: 0; }
+.emp-name { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emp-role { font-size: 12px; color: var(–text2); margin-top: 2px; }
+.emp-status { font-size: 11px; margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot-green  { background: var(–green); }
+.dot-red    { background: var(–red); }
+.dot-gray   { background: var(–text2); }
+.emp-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.icon-btn {
+width: 36px; height: 36px; border-radius: 10px; border: none;
+display: flex; align-items: center; justify-content: center;
+cursor: pointer; font-size: 18px; transition: opacity .15s;
+}
+.icon-btn:active { opacity: .7; }
+.icon-btn-green { background: rgba(34,197,94,.15); color: var(–green); }
+.icon-btn-red   { background: rgba(239,68,68,.15);  color: var(–red); }
+
+/* FORMS */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 12px; color: var(–text2); margin-bottom: 6px; font-weight: 500; }
+.form-group input,
+.form-group select,
+.form-group textarea {
+width: 100%; padding: 12px 14px; background: var(–surface2);
+border: 1px solid var(–border); border-radius: 10px;
+color: var(–text); font-family: inherit; font-size: 15px;
+outline: none; transition: border-color .2s;
+-webkit-appearance: none;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus { border-color: var(–accent); }
+.form-group textarea { resize: vertical; min-height: 80px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* TOGGLE */
+.toggle-row {
+display: flex; align-items: center; justify-content: space-between;
+padding: 12px 0; border-bottom: 1px solid var(–border);
+}
+.toggle-row:last-child { border-bottom: none; }
+.toggle {
+width: 46px; height: 26px; background: var(–border);
+border-radius: 13px; position: relative; cursor: pointer;
+transition: background .2s; flex-shrink: 0;
+}
+.toggle.on { background: var(–accent); }
+.toggle::after {
+content: ‘’; position: absolute; top: 3px; left: 3px;
+width: 20px; height: 20px; background: #fff; border-radius: 50%;
+transition: transform .2s;
+}
+.toggle.on::after { transform: translateX(20px); }
+
+/* BADGE */
+.badge-card {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 20px;
+overflow: hidden;
+margin-bottom: 16px;
+}
+.badge-header {
+background: linear-gradient(135deg, var(–accent), #a78bfa);
+padding: 24px 20px;
+text-align: center;
+}
+.badge-avatar {
+width: 90px; height: 90px; border-radius: 50%;
+background: rgba(255,255,255,.2);
+display: flex; align-items: center; justify-content: center;
+font-size: 32px; font-weight: 700; color: #fff;
+border: 3px solid #fff; margin: 0 auto 12px;
+overflow: hidden;
+}
+.badge-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.badge-name { font-size: 20px; font-weight: 700; }
+.badge-role { font-size: 14px; opacity: .85; margin-top: 4px; }
+.badge-body { padding: 20px; }
+
+/* CALENDAR */
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cal-nav { background: var(–surface2); border: 1px solid var(–border); border-radius: 10px; padding: 8px 14px; color: var(–text); font-size: 18px; cursor: pointer; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-day-header { text-align: center; font-size: 11px; color: var(–text2); font-weight: 600; padding: 4px 0; }
+.cal-day {
+aspect-ratio: 1; border-radius: 8px; display: flex; flex-direction: column;
+align-items: center; justify-content: center; font-size: 13px;
+cursor: pointer; transition: opacity .15s; gap: 1px;
+}
+.cal-day:active { opacity: .7; }
+.cal-day.empty { pointer-events: none; }
+.cal-day.today { border: 2px solid var(–orange); font-weight: 700; }
+.cal-day.selected { border: 2px solid var(–accent); }
+.cal-day.worked  { background: rgba(34,197,94,.2);  }
+.cal-day.missing { background: rgba(239,68,68,.15); }
+.cal-day.absent-vacation { background: rgba(249,115,22,.2); }
+.cal-day.absent-medical  { background: rgba(239,68,68,.2); }
+.cal-day.absent-personal { background: rgba(168,85,247,.2); }
+.cal-day.absent-dayOff   { background: rgba(99,102,241,.2); }
+.cal-day.absent-holiday  { background: rgba(34,197,94,.2); }
+.cal-day.future { background: rgba(108,99,255,.1); }
+.cal-day-label { font-size: 9px; }
+
+/* ALERTS */
+.alert-item {
+display: flex; align-items: center; gap: 12px;
+padding: 12px; background: var(–surface2);
+border-radius: 12px; margin-bottom: 8px;
+}
+.alert-icon {
+width: 38px; height: 38px; border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+font-size: 16px; flex-shrink: 0;
+}
+
+/* MODAL */
+.modal-overlay {
+position: fixed; inset: 0; background: rgba(0,0,0,.7);
+z-index: 200; display: none; align-items: flex-end;
+padding: 0;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+background: var(–surface);
+border-radius: 20px 20px 0 0;
+width: 100%; max-height: 90vh;
+overflow-y: auto; padding: 20px;
+padding-bottom: calc(20px + env(safe-area-inset-bottom));
+}
+.modal-handle {
+width: 36px; height: 4px; background: var(–border);
+border-radius: 2px; margin: 0 auto 16px;
+}
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+
+/* QR SCANNER */
+.scanner-container {
+position: fixed; inset: 0; background: #000; z-index: 300;
+display: none; flex-direction: column;
+}
+.scanner-container.open { display: flex; }
+#scanner-video { width: 100%; height: 100%; object-fit: cover; }
+.scanner-overlay {
+position: absolute; inset: 0; display: flex;
+flex-direction: column; align-items: center; justify-content: center;
+pointer-events: none;
+}
+.scanner-frame {
+width: 220px; height: 220px; border: 2px solid #fff;
+border-radius: 16px; position: relative;
+}
+.scanner-frame::before, .scanner-frame::after,
+.scanner-corner-bl, .scanner-corner-br {
+content: ‘’; position: absolute; width: 24px; height: 24px;
+border-color: var(–accent); border-style: solid;
+}
+.scanner-frame::before { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-radius: 10px 0 0 0; }
+.scanner-frame::after  { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-radius: 0 10px 0 0; }
+.scanner-corner-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-radius: 0 0 0 10px; }
+.scanner-corner-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 10px 0; }
+.scanner-text { color: #fff; margin-top: 24px; font-size: 14px; opacity: .8; }
+.scanner-close {
+position: absolute; top: 50px; right: 20px;
+background: rgba(255,255,255,.15); border: none; color: #fff;
+width: 44px; height: 44px; border-radius: 50%; font-size: 20px;
+cursor: pointer; pointer-events: all;
+display: flex; align-items: center; justify-content: center;
+}
+
+/* TOAST */
+.toast {
+position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+background: var(–surface); border: 1px solid var(–border);
+color: var(–text); padding: 12px 20px; border-radius: 50px;
+font-size: 14px; font-weight: 500; z-index: 400;
+opacity: 0; transition: all .3s; white-space: nowrap;
+box-shadow: 0 8px 32px rgba(0,0,0,.4);
+pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* SECTION TITLE */
+.section-title { font-size: 13px; font-weight: 600; color: var(–text2); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px; }
+
+/* HISTORY */
+.history-day { margin-bottom: 16px; }
+.history-day-label { font-size: 12px; color: var(–text2); font-weight: 600; margin-bottom: 8px; padding: 0 4px; }
+.history-item {
+display: flex; align-items: center; gap: 10px;
+padding: 10px 12px; background: var(–surface2);
+border-radius: 10px; margin-bottom: 6px;
+}
+.history-type { font-size: 14px; font-weight: 500; }
+.history-name { font-size: 12px; color: var(–text2); }
+.history-time { font-size: 12px; color: var(–text2); margin-left: auto; font-family: ‘DM Mono’, monospace; }
+
+/* REPORT */
+.report-row {
+display: flex; justify-content: space-between; align-items: center;
+padding: 10px 0; border-bottom: 1px solid var(–border);
+font-size: 14px;
+}
+.report-row:last-child { border-bottom: none; }
+.report-val { font-weight: 700; }
+
+/* SCHEDULE ROW */
+.sched-row {
+padding: 12px 0; border-bottom: 1px solid var(–border);
+}
+.sched-row:last-child { border-bottom: none; }
+.sched-times { display: flex; gap: 10px; margin-top: 8px; }
+.sched-times input { flex: 1; }
+
+/* TABS */
+.tabs { display: flex; background: var(–surface2); border-radius: 12px; padding: 4px; margin-bottom: 16px; gap: 2px; }
+.tab-btn {
+flex: 1; padding: 8px; border-radius: 9px; border: none;
+font-family: inherit; font-size: 12px; font-weight: 600;
+cursor: pointer; transition: all .2s;
+background: transparent; color: var(–text2);
+}
+.tab-btn.active { background: var(–surface); color: var(–text); }
+
+/* SEARCH */
+.search-box {
+width: 100%; padding: 12px 14px 12px 40px;
+background: var(–surface2); border: 1px solid var(–border);
+border-radius: 12px; color: var(–text); font-family: inherit;
+font-size: 15px; outline: none; margin-bottom: 12px;
+position: relative;
+}
+.search-wrap { position: relative; margin-bottom: 12px; }
+.search-wrap::before {
+content: ‘🔍’; position: absolute; left: 12px; top: 50%;
+transform: translateY(-50%); font-size: 14px; pointer-events: none;
+z-index: 1;
+}
+.search-wrap input { padding-left: 38px; margin-bottom: 0; }
+
+/* PROGRESS BAR */
+.progress-bar { height: 8px; background: var(–surface2); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+.progress-fill { height: 100%; border-radius: 4px; background: var(–accent); transition: width .4s; }
+
+/* QR DIV */
+#qr-canvas { display: flex; justify-content: center; }
+#qr-canvas canvas, #qr-canvas img { border-radius: 12px; padding: 12px; background: #fff; }
+
+/* PHOTO UPLOAD */
+.photo-upload {
+width: 90px; height: 90px; border-radius: 50%;
+background: var(–surface2); border: 2px dashed var(–border);
+display: flex; align-items: center; justify-content: center;
+cursor: pointer; margin: 0 auto 16px; overflow: hidden;
+font-size: 28px; transition: border-color .2s;
+}
+.photo-upload:hover { border-color: var(–accent); }
+.photo-upload img { width: 100%; height: 100%; object-fit: cover; }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 40px 20px; color: var(–text2); }
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state h3 { font-size: 16px; color: var(–text); margin-bottom: 8px; }
+.empty-state p { font-size: 13px; line-height: 1.5; }
+
+/* CHIP */
+.chip {
+display: inline-flex; align-items: center; gap: 4px;
+padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+.chip-green  { background: rgba(34,197,94,.15);  color: var(–green); }
+.chip-red    { background: rgba(239,68,68,.15);   color: var(–red); }
+.chip-orange { background: rgba(249,115,22,.15);  color: var(–orange); }
+.chip-purple { background: rgba(168,85,247,.15);  color: #a855f7; }
+
+select option { background: var(–surface2); }
+input[type=“date”], input[type=“time”] { color-scheme: dark; }
+
+.divider { height: 1px; background: var(–border); margin: 12px 0; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.gap-8 { gap: 8px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.text-sm { font-size: 13px; }
+.text-xs { font-size: 11px; }
+.text-muted { color: var(–text2); }
+.fw-600 { font-weight: 600; }
+.text-green  { color: var(–green); }
+.text-red    { color: var(–red); }
+.text-orange { color: var(–orange); }
+.text-accent { color: var(–accent); }
+</style>
+
+</head>
+<body>
+
+<!-- SCANNER -->
+
+<div class="scanner-container" id="scannerContainer">
+  <video id="scanner-video" playsinline autoplay muted></video>
+  <canvas id="scanner-canvas" style="display:none"></canvas>
+  <div class="scanner-overlay">
+    <div class="scanner-frame">
+      <div class="scanner-corner-bl"></div>
+      <div class="scanner-corner-br"></div>
+    </div>
+    <p class="scanner-text">Apunta al codigo QR del empleado</p>
+  </div>
+  <button class="scanner-close" onclick="closeScanner()">✕</button>
+</div>
+
+<!-- TOAST -->
+
+<div class="toast" id="toast"></div>
+
+<!-- MODALS -->
+
+<div class="modal-overlay" id="employeeModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">Nuevo empleado</div>
+
+```
+<div style="cursor:pointer" onclick="document.getElementById('photoInput').click()">
+  <div class="photo-upload" id="photoPreview">📷</div>
+</div>
+<input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhoto(event)">
+
+<div class="form-row">
+  <div class="form-group">
+    <label>Nombre completo *</label>
+    <input type="text" id="empName" placeholder="Juan Perez">
+  </div>
+  <div class="form-group">
+    <label>Numero de empleado</label>
+    <input type="text" id="empNumber" placeholder="001">
+  </div>
+</div>
+<div class="form-row">
+  <div class="form-group">
+    <label>Cargo</label>
+    <select id="empPosition">
+      <option>Mesero/a</option><option>Cocinero/a</option>
+      <option>Cajero/a</option><option>Barista</option>
+      <option>Limpieza</option><option>Supervisor/a</option>
+      <option>Gerente</option><option>Otro</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Fecha de inicio</label>
+    <input type="date" id="empStartDate">
+  </div>
+</div>
+<div class="form-row">
+  <div class="form-group">
+    <label>Telefono</label>
+    <input type="tel" id="empPhone" placeholder="+1 555 0000">
+  </div>
+  <div class="form-group">
+    <label>Semanas vacaciones</label>
+    <input type="number" id="empVacation" value="4" min="1" max="8">
+  </div>
+</div>
+<div class="form-row">
+  <div class="form-group">
+    <label>Tipo de pago</label>
+    <select id="empPayType" onchange="updateRateLabel()">
+      <option value="hourly">Por hora</option>
+      <option value="monthly">Salario fijo</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label id="rateLabel">Tarifa por hora ($)</label>
+    <input type="number" id="empRate" placeholder="0.00" step="0.01">
+  </div>
+</div>
+<div class="form-group">
+  <label>Notas</label>
+  <textarea id="empNotes" placeholder="Observaciones..."></textarea>
+</div>
+
+<p class="section-title" style="margin-top:8px">Horario semanal</p>
+<div class="card" style="padding:8px 14px" id="scheduleEditor"></div>
+
+<div style="display:flex;gap:10px;margin-top:16px">
+  <button class="btn btn-surface" onclick="closeModal('employeeModal')">Cancelar</button>
+  <button class="btn btn-primary" onclick="saveEmployee()">Guardar</button>
+</div>
+```
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="absenceModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Nueva ausencia</div>
+    <input type="hidden" id="absEmpId">
+    <div class="form-group">
+      <label>Tipo</label>
+      <select id="absType">
+        <option value="vacation">🌴 Vacaciones</option>
+        <option value="medical">🏥 Incapacidad medica</option>
+        <option value="personal">👤 Permiso personal</option>
+        <option value="dayOff">💤 Dia libre</option>
+        <option value="holiday">⭐ Feriado</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Fecha inicio</label>
+        <input type="date" id="absStart">
+      </div>
+      <div class="form-group">
+        <label>Fecha fin</label>
+        <input type="date" id="absEnd">
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="toggle-row">
+        <span>Aprobado</span>
+        <div class="toggle on" id="absApproved" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notas</label>
+      <input type="text" id="absNotes" placeholder="Opcional...">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-surface" onclick="closeModal('absenceModal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveAbsence()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" id="detailContent"></div>
+</div>
+
+<div class="modal-overlay" id="qrModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="qrModalTitle">Codigo QR</div>
+    <div id="qr-canvas" style="margin:16px 0"></div>
+    <p class="text-sm text-muted" style="text-align:center;margin-bottom:16px">Escanea para registrar entrada o salida</p>
+    <button class="btn btn-surface" onclick="closeModal('qrModal')">Cerrar</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="scanActionModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="scanActionContent"></div>
+  </div>
+</div>
+
+<!-- PAGES -->
+
+<div class="page active" id="page-dashboard">
+  <div class="page-header">
+    <h1>Control de Horarios</h1>
+    <p id="dashDate"></p>
+  </div>
+  <div class="stat-grid" id="statGrid"></div>
+  <p class="section-title">Acciones rapidas</p>
+  <button class="btn btn-primary" style="margin-bottom:10px" onclick="openScanner()">
+    📷 Escanear QR para fichar
+  </button>
+  <div id="alertsSection"></div>
+  <div id="presentSection"></div>
+</div>
+
+<div class="page" id="page-employees">
+  <div class="page-header">
+    <h1>Mi Equipo</h1>
+    <p id="empCount"></p>
+  </div>
+  <div class="search-wrap">
+    <input type="text" placeholder="Buscar empleado..." oninput="renderEmployees(this.value)" id="searchInput">
+  </div>
+  <div id="employeeList"></div>
+  <button class="btn btn-primary" onclick="openEmployeeModal()" style="margin-top:8px">
+    + Agregar empleado
+  </button>
+</div>
+
+<div class="page" id="page-history">
+  <div class="page-header">
+    <h1>Historial</h1>
+    <p>Registro de entradas y salidas</p>
+  </div>
+  <div id="historyList"></div>
+</div>
+
+<div class="page" id="page-report">
+  <div class="page-header">
+    <h1>Reporte</h1>
+    <p id="reportMonthLabel"></p>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <button class="cal-nav" onclick="changeReportMonth(-1)">‹</button>
+    <span id="reportMonthTitle" class="fw-600"></span>
+    <button class="cal-nav" onclick="changeReportMonth(1)">›</button>
+  </div>
+  <div id="reportList"></div>
+  <button class="btn btn-surface" onclick="exportCSV()" style="margin-top:8px">
+    ⬇️ Exportar CSV
+  </button>
+</div>
+
+<!-- NAV -->
+
+<nav>
+  <button class="nav-btn active" onclick="showPage('dashboard', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+    Dashboard
+  </button>
+  <button class="nav-btn" onclick="showPage('employees', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Equipo
+  </button>
+  <button class="nav-btn" onclick="showPage('history', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Historial
+  </button>
+  <button class="nav-btn" onclick="showPage('report', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Reporte
+  </button>
+</nav>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+let employees = JSON.parse(localStorage.getItem('employees') || '[]');
+let history   = JSON.parse(localStorage.getItem('history')   || '[]');
+let absences  = JSON.parse(localStorage.getItem('absences')  || '[]');
+
+let editingEmpId = null;
+let currentPhotoData = null;
+let reportMonth = new Date();
+let scannerStream = null;
+let scannerInterval = null;
+
+function saveData() {
+  localStorage.setItem('employees', JSON.stringify(employees));
+  localStorage.setItem('history',   JSON.stringify(history));
+  localStorage.setItem('absences',  JSON.stringify(absences));
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
+
+function initials(name) {
+  return name.split(' ').slice(0,2).map(w => w[0] || '').join('').toUpperCase() || '?';
+}
+
+function fmtTime(iso) {
+  return new Date(iso).toLocaleTimeString('es', {hour:'2-digit', minute:'2-digit'});
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleDateString('es', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+
+function fmtDateLong(iso) {
+  return new Date(iso).toLocaleDateString('es', {weekday:'long', day:'numeric', month:'long'});
+}
+
+function today() {
+  const d = new Date(); d.setHours(0,0,0,0); return d;
+}
+
+function sameDay(a, b) {
+  const da = new Date(a), db = new Date(b);
+  return da.getFullYear()===db.getFullYear() && da.getMonth()===db.getMonth() && da.getDate()===db.getDate();
+}
+
+function showToast(msg, duration=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'dashboard')  renderDashboard();
+  if (id === 'employees')  renderEmployees();
+  if (id === 'history')    renderHistory();
+  if (id === 'report')     renderReport();
+}
+
+// ── EMPLOYEE ──────────────────────────────────────────────────────────────
+function defaultSchedules() {
+  const s = {};
+  // 0=Sun,1=Mon,2=Tue,3=Wed,4=Thu,5=Fri,6=Sat
+  for (let i=0; i<7; i++) {
+    s[i] = { enabled: i>=1 && i<=5, entry: '08:00', exit: '17:00' };
+  }
+  return s;
+}
+
+function openEmployeeModal(empId=null) {
+  editingEmpId = empId;
+  currentPhotoData = null;
+  const emp = empId ? employees.find(e=>e.id===empId) : null;
+  document.getElementById('modalTitle').textContent = emp ? 'Editar empleado' : 'Nuevo empleado';
+  document.getElementById('empName').value      = emp?.name || '';
+  document.getElementById('empNumber').value    = emp?.number || '';
+  document.getElementById('empPosition').value  = emp?.position || 'Mesero/a';
+  document.getElementById('empStartDate').value = emp?.startDate || new Date().toISOString().split('T')[0];
+  document.getElementById('empPhone').value     = emp?.phone || '';
+  document.getElementById('empVacation').value  = emp?.vacationWeeks || 4;
+  document.getElementById('empPayType').value   = emp?.payType || 'hourly';
+  document.getElementById('empRate').value      = emp?.rate || '';
+  document.getElementById('empNotes').value     = emp?.notes || '';
+  updateRateLabel();
+  if (emp?.photo) {
+    currentPhotoData = emp.photo;
+    document.getElementById('photoPreview').innerHTML = `<img src="${emp.photo}">`;
+  } else {
+    document.getElementById('photoPreview').innerHTML = '📷';
+  }
+  renderScheduleEditor(emp?.schedules || defaultSchedules());
+  openModal('employeeModal');
+}
+
+function updateRateLabel() {
+  const t = document.getElementById('empPayType').value;
+  document.getElementById('rateLabel').textContent = t === 'hourly' ? 'Tarifa por hora ($)' : 'Salario mensual ($)';
+}
+
+function handlePhoto(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    currentPhotoData = ev.target.result;
+    document.getElementById('photoPreview').innerHTML = `<img src="${currentPhotoData}">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderScheduleEditor(schedules) {
+  const days = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
+  const container = document.getElementById('scheduleEditor');
+  container.innerHTML = days.map((day, i) => `
+    <div class="sched-row" id="srow-${i}">
+      <div class="toggle-row" style="border:none;padding:0">
+        <span class="fw-600" style="font-size:14px">${day}</span>
+        <div class="toggle ${schedules[i]?.enabled ? 'on' : ''}" id="stoggle-${i}"
+             onclick="toggleScheduleDay(${i})"></div>
+      </div>
+      <div class="sched-times" id="stimes-${i}" style="display:${schedules[i]?.enabled?'flex':'none'}">
+        <div class="form-group" style="margin:0;flex:1">
+          <label>Entrada</label>
+          <input type="time" id="sentry-${i}" value="${schedules[i]?.entry || '08:00'}">
+        </div>
+        <div class="form-group" style="margin:0;flex:1">
+          <label>Salida</label>
+          <input type="time" id="sexit-${i}" value="${schedules[i]?.exit || '17:00'}">
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleScheduleDay(i) {
+  const t = document.getElementById(`stoggle-${i}`);
+  const times = document.getElementById(`stimes-${i}`);
+  t.classList.toggle('on');
+  times.style.display = t.classList.contains('on') ? 'flex' : 'none';
+}
+
+function getSchedulesFromEditor() {
+  const s = {};
+  for (let i=0; i<7; i++) {
+    const enabled = document.getElementById(`stoggle-${i}`)?.classList.contains('on') || false;
+    s[i] = { enabled, entry: document.getElementById(`sentry-${i}`)?.value || '08:00',
+              exit: document.getElementById(`sexit-${i}`)?.value || '17:00' };
+  }
+  return s;
+}
+
+function saveEmployee() {
+  const name = document.getElementById('empName').value.trim();
+  if (!name) { showToast('El nombre es obligatorio'); return; }
+  const schedules = getSchedulesFromEditor();
+  const data = {
+    id: editingEmpId || uid(),
+    name,
+    number:       document.getElementById('empNumber').value.trim(),
+    position:     document.getElementById('empPosition').value,
+    startDate:    document.getElementById('empStartDate').value,
+    phone:        document.getElementById('empPhone').value.trim(),
+    vacationWeeks:parseInt(document.getElementById('empVacation').value) || 4,
+    payType:      document.getElementById('empPayType').value,
+    rate:         parseFloat(document.getElementById('empRate').value) || 0,
+    notes:        document.getElementById('empNotes').value.trim(),
+    photo:        currentPhotoData,
+    schedules,
+    archived: false
+  };
+  if (editingEmpId) {
+    const idx = employees.findIndex(e=>e.id===editingEmpId);
+    if (idx>=0) employees[idx] = {...employees[idx], ...data};
+  } else {
+    employees.push(data);
+  }
+  saveData(); closeModal('employeeModal');
+  renderEmployees(); renderDashboard();
+  showToast(editingEmpId ? 'Empleado actualizado' : 'Empleado agregado');
+}
+
+function deleteEmployee(id) {
+  if (!confirm('Eliminar este empleado y todos sus registros?')) return;
+  employees = employees.filter(e=>e.id!==id);
+  history   = history.filter(h=>h.empId!==id);
+  absences  = absences.filter(a=>a.empId!==id);
+  saveData(); renderEmployees(); renderDashboard();
+  showToast('Empleado eliminado');
+}
+
+// ── ATTENDANCE ─────────────────────────────────────────────────────────────
+function canRegister(empId, type) {
+  const todayRecs = history.filter(h => h.empId===empId && sameDay(h.ts, new Date()));
+  if (type==='in')  return !todayRecs.some(h=>h.type==='in');
+  if (type==='out') return todayRecs.some(h=>h.type==='in') && !todayRecs.some(h=>h.type==='out');
+  return true;
+}
+
+function register(empId, type) {
+  const emp = employees.find(e=>e.id===empId);
+  if (!emp) return;
+  if (!canRegister(empId, type)) {
+    showToast(type==='in' ? 'Entrada ya registrada hoy' : 'No puedes registrar salida aun');
+    return;
+  }
+  history.unshift({ id: uid(), empId, empName: emp.name, type, ts: new Date().toISOString() });
+  saveData(); renderDashboard(); renderHistory(); renderEmployees();
+  showToast(type==='in' ? '✅ Entrada registrada' : '🔴 Salida registrada');
+}
+
+function lastAction(empId) {
+  return history.find(h=>h.empId===empId);
+}
+
+function workedTime(empId, date) {
+  const recs = history.filter(h=>h.empId===empId && sameDay(h.ts,date)).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  const inn = recs.find(h=>h.type==='in');
+  const out = recs.findLast ? recs.findLast(h=>h.type==='out') : [...recs].reverse().find(h=>h.type==='out');
+  if (!inn || !out) return null;
+  return (new Date(out.ts) - new Date(inn.ts)) / 3600000;
+}
+
+// ── ABSENCES ───────────────────────────────────────────────────────────────
+function getAbsence(empId, date) {
+  const d = new Date(date); d.setHours(0,0,0,0);
+  return absences.find(a => {
+    if (a.empId !== empId) return false;
+    const s = new Date(a.start); s.setHours(0,0,0,0);
+    const e = new Date(a.end);   e.setHours(0,0,0,0);
+    return d >= s && d <= e;
+  });
+}
+
+function saveAbsence() {
+  const empId = document.getElementById('absEmpId').value;
+  const start = document.getElementById('absStart').value;
+  const end   = document.getElementById('absEnd').value;
+  if (!start || !end) { showToast('Selecciona las fechas'); return; }
+  absences.unshift({
+    id: uid(), empId,
+    type:     document.getElementById('absType').value,
+    start, end,
+    approved: document.getElementById('absApproved').classList.contains('on'),
+    notes:    document.getElementById('absNotes').value.trim()
+  });
+  saveData(); closeModal('absenceModal');
+  showToast('Ausencia registrada');
+}
+
+function openAbsenceModal(empId) {
+  document.getElementById('absEmpId').value = empId;
+  document.getElementById('absStart').value = new Date().toISOString().split('T')[0];
+  document.getElementById('absEnd').value   = new Date().toISOString().split('T')[0];
+  document.getElementById('absNotes').value = '';
+  document.getElementById('absApproved').classList.add('on');
+  openModal('absenceModal');
+}
+
+function vacationUsed(empId) {
+  return absences.filter(a=>a.empId===empId&&a.type==='vacation'&&a.approved)
+    .reduce((sum,a)=>{
+      const s=new Date(a.start), e=new Date(a.end);
+      return sum + Math.round((e-s)/86400000)+1;
+    },0);
+}
+
+// ── DAY TYPE ───────────────────────────────────────────────────────────────
+function dayType(emp, date) {
+  const d = new Date(date); d.setHours(0,0,0,0);
+  const t = today();
+  const dow = d.getDay();
+  const sch = emp.schedules?.[dow];
+  const abs = getAbsence(emp.id, date);
+  if (abs) return { type: 'absent', subtype: abs.type };
+  const hasRec = history.some(h=>h.empId===emp.id && sameDay(h.ts,date));
+  if (hasRec) return { type: 'worked' };
+  if (d > t) return sch?.enabled ? { type: 'future' } : { type: 'free' };
+  if (sch?.enabled) return { type: 'missingRecord' };
+  return { type: 'free' };
+}
+
+// ── QR ─────────────────────────────────────────────────────────────────────
+function showQR(empId) {
+  const emp = employees.find(e=>e.id===empId); if (!emp) return;
+  document.getElementById('qrModalTitle').textContent = 'QR - ' + emp.name;
+  const container = document.getElementById('qr-canvas');
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: 'EMP:' + empId, width: 200, height: 200,
+    colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M
+  });
+  openModal('qrModal');
+}
+
+function openScanner() {
+  const container = document.getElementById('scannerContainer');
+  container.classList.add('open');
+  const video = document.getElementById('scanner-video');
+  const canvas = document.getElementById('scanner-canvas');
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      scannerStream = stream;
+      video.srcObject = stream;
+      video.play();
+      scannerInterval = setInterval(() => {
+        if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code) {
+          clearInterval(scannerInterval);
+          handleQRScan(code.data);
+        }
+      }, 200);
+    })
+    .catch(() => showToast('No se pudo acceder a la camara'));
+}
+
+function closeScanner() {
+  clearInterval(scannerInterval);
+  if (scannerStream) { scannerStream.getTracks().forEach(t=>t.stop()); scannerStream = null; }
+  document.getElementById('scannerContainer').classList.remove('open');
+}
+
+function handleQRScan(data) {
+  closeScanner();
+  if (!data.startsWith('EMP:')) { showToast('QR no reconocido'); return; }
+  const empId = data.replace('EMP:', '');
+  const emp = employees.find(e=>e.id===empId);
+  if (!emp) { showToast('Empleado no encontrado'); return; }
+  const last = lastAction(empId);
+  const content = document.getElementById('scanActionContent');
+  content.innerHTML = `
+    <div class="modal-handle"></div>
+    <div style="text-align:center;padding:8px 0 20px">
+      <div class="badge-avatar" style="margin:0 auto 12px;width:70px;height:70px;font-size:24px">
+        ${emp.photo ? `<img src="${emp.photo}">` : initials(emp.name)}
+      </div>
+      <h2 style="font-size:20px;font-weight:700">${emp.name}</h2>
+      <p class="text-muted text-sm">${emp.position}</p>
+      <p class="text-muted text-xs" style="margin-top:4px">${new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})}</p>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-green" onclick="register('${empId}','in');closeModal('scanActionModal')">
+        ✅ Registrar Entrada
+      </button>
+      <button class="btn btn-red" onclick="register('${empId}','out');closeModal('scanActionModal')">
+        🔴 Registrar Salida
+      </button>
+    </div>
+    <button class="btn btn-surface" onclick="closeModal('scanActionModal')" style="margin-top:10px">
+      Cancelar
+    </button>
+  `;
+  openModal('scanActionModal');
+}
+
+// ── EMPLOYEE DETAIL ────────────────────────────────────────────────────────
+function openDetail(empId) {
+  const emp = employees.find(e=>e.id===empId); if (!emp) return;
+  const last = lastAction(empId);
+  const worked = workedTime(empId, new Date());
+  const vacUsed = vacationUsed(empId);
+  const vacTotal = (emp.vacationWeeks||4)*5;
+  const vacLeft  = Math.max(0, vacTotal - vacUsed);
+  const startDays = Math.floor((Date.now()-new Date(emp.startDate).getTime())/86400000);
+  const seniority = startDays < 30 ? startDays+'d' : startDays < 365 ? Math.floor(startDays/30)+'m' : Math.floor(startDays/365)+'a';
+
+  const content = document.getElementById('detailContent');
+  content.innerHTML = `
+    <div class="modal-handle"></div>
+    <div style="text-align:center;margin-bottom:20px">
+      <div class="badge-avatar" style="margin:0 auto 12px">${emp.photo?`<img src="${emp.photo}">`:initials(emp.name)}</div>
+      <h2 style="font-size:20px;font-weight:700">${emp.name}</h2>
+      <p class="text-muted">${emp.position}</p>
+    </div>
+
+    <div class="stat-grid" style="margin-bottom:16px">
+      <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-value" style="font-size:20px">${seniority}</div><div class="stat-label">Antiguedad</div></div>
+      <div class="stat-card"><div class="stat-icon">🌴</div><div class="stat-value" style="font-size:20px;color:var(--orange)">${vacLeft}d</div><div class="stat-label">Vacaciones</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="detailTab(this,'dt-fichar')">Fichar</button>
+      <button class="tab-btn" onclick="detailTab(this,'dt-calendar')">Calendario</button>
+      <button class="tab-btn" onclick="detailTab(this,'dt-qr')">QR/Carnet</button>
+      <button class="tab-btn" onclick="detailTab(this,'dt-info')">Info</button>
+    </div>
+
+    <div id="dt-fichar">
+      <div class="card" style="margin-bottom:10px">
+        <div class="flex-between">
+          <span class="text-sm text-muted">Hoy</span>
+          <span class="text-sm">${worked ? worked.toFixed(1)+'h trabajadas' : 'Sin registro completo'}</span>
+        </div>
+        ${last ? `<div class="emp-status" style="margin-top:8px">
+          <div class="dot ${last.type==='in'?'dot-green':'dot-red'}"></div>
+          <span class="text-sm">${last.type==='in'?'Entrada':'Salida'} a las ${fmtTime(last.ts)}</span>
+        </div>` : '<p class="text-sm text-muted" style="margin-top:8px">Sin registro hoy</p>'}
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <button class="btn btn-green" onclick="register('${empId}','in')">✅ Entrada</button>
+        <button class="btn btn-red"   onclick="register('${empId}','out')">🔴 Salida</button>
+      </div>
+      <button class="btn btn-surface" onclick="openAbsenceModal('${empId}')">📋 Registrar ausencia</button>
+    </div>
+
+    <div id="dt-calendar" style="display:none">
+      <div id="detail-cal-${empId}"></div>
+    </div>
+
+    <div id="dt-qr" style="display:none">
+      <div id="detail-qr-${empId}" style="display:flex;justify-content:center;margin:16px 0"></div>
+      <p class="text-sm text-muted" style="text-align:center;margin-bottom:16px">Escanea para fichar</p>
+      <button class="btn btn-primary" onclick="showQR('${empId}')">Abrir QR grande</button>
+    </div>
+
+    <div id="dt-info" style="display:none">
+      <div class="card">
+        ${emp.phone ? `<div class="report-row"><span class="text-muted">Telefono</span><span>${emp.phone}</span></div>` : ''}
+        <div class="report-row"><span class="text-muted">Pago</span><span>${emp.payType==='hourly'?'Por hora':'Mensual'} - $${emp.rate}</span></div>
+        <div class="report-row"><span class="text-muted">Inicio</span><span>${fmtDate(emp.startDate)}</span></div>
+        <div class="report-row"><span class="text-muted">Vacaciones</span><span>${emp.vacationWeeks} semanas (${vacLeft}/${vacTotal}d)</span></div>
+        ${emp.notes ? `<div class="report-row"><span class="text-muted">Notas</span><span class="text-sm">${emp.notes}</span></div>` : ''}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn btn-surface" onclick="closeModal('detailModal');openEmployeeModal('${empId}')">✏️ Editar</button>
+        <button class="btn btn-surface" style="color:var(--red)" onclick="closeModal('detailModal');deleteEmployee('${empId}')">🗑 Eliminar</button>
+      </div>
+    </div>
+  `;
+  openModal('detailModal');
+
+  // Render small QR in detail
+  setTimeout(()=>{
+    const qrDiv = document.getElementById(`detail-qr-${empId}`);
+    if (qrDiv) {
+      new QRCode(qrDiv, { text:'EMP:'+empId, width:160, height:160,
+        colorDark:'#000', colorLight:'#fff', correctLevel:QRCode.CorrectLevel.M });
+    }
+  }, 100);
+}
+
+function detailTab(btn, tabId) {
+  const tabs = ['dt-fichar','dt-calendar','dt-qr','dt-info'];
+  tabs.forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).style.display = 'block';
+
+  // Lazy render calendar
+  if (tabId.startsWith('dt-calendar')) {
+    const empId = tabId.replace('dt-calendar-','').replace('dt-calendar','');
+    // find emp id from context
+    const emp = employees.find(e => document.getElementById(`detail-cal-${e.id}`));
+    if (emp) renderDetailCalendar(emp.id);
+  }
+}
+
+// ── CALENDAR ──────────────────────────────────────────────────────────────
+let calMonth = new Date();
+let calEmpId = null;
+
+function renderDetailCalendar(empId) {
+  calEmpId = empId;
+  calMonth = new Date();
+  const container = document.getElementById(`detail-cal-${empId}`);
+  if (!container) return;
+  container.innerHTML = `
+    <div class="cal-header">
+      <button class="cal-nav" onclick="shiftCal(-1,'${empId}')">‹</button>
+      <span class="fw-600" id="cal-month-label-${empId}"></span>
+      <button class="cal-nav" onclick="shiftCal(1,'${empId}')">›</button>
+    </div>
+    <div class="cal-grid" id="cal-grid-${empId}"></div>
+    <div id="cal-detail-${empId}" style="margin-top:12px"></div>
+  `;
+  renderCalGrid(empId);
+}
+
+function shiftCal(dir, empId) {
+  calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+dir, 1);
+  renderCalGrid(empId);
+}
+
+function renderCalGrid(empId) {
+  const emp = employees.find(e=>e.id===empId); if (!emp) return;
+  const year = calMonth.getFullYear(), month = calMonth.getMonth();
+  const label = document.getElementById(`cal-month-label-${empId}`);
+  if (label) label.textContent = calMonth.toLocaleDateString('es',{month:'long',year:'numeric'});
+  const grid = document.getElementById(`cal-grid-${empId}`);
+  if (!grid) return;
+  const days = ['L','M','X','J','V','S','D'];
+  let html = days.map(d=>`<div class="cal-day-header">${d}</div>`).join('');
+  const first = new Date(year, month, 1);
+  const offset = (first.getDay()+6)%7;
+  for(let i=0;i<offset;i++) html += '<div class="cal-day empty"></div>';
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const t = today();
+  for(let d=1;d<=daysInMonth;d++){
+    const date = new Date(year,month,d);
+    const dt = dayType(emp, date);
+    let cls = 'cal-day';
+    if (dt.type==='worked') cls += ' worked';
+    else if (dt.type==='missingRecord') cls += ' missing';
+    else if (dt.type==='absent') cls += ' absent-'+dt.subtype;
+    else if (dt.type==='future') cls += ' future';
+    if (sameDay(date,t)) cls += ' today';
+    const lbl = dt.type==='worked'?'✓':dt.type==='missingRecord'?'!':
+      dt.type==='absent'?({vacation:'🌴',medical:'🏥',personal:'👤',dayOff:'💤',holiday:'⭐'}[dt.subtype]||''):'';
+    html += `<div class="${cls}" onclick="showCalDay('${empId}','${date.toISOString()}')">
+      <span>${d}</span>${lbl?`<span class="cal-day-label">${lbl}</span>`:''}
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function showCalDay(empId, dateIso) {
+  const emp = employees.find(e=>e.id===empId); if (!emp) return;
+  const date = new Date(dateIso);
+  const dt = dayType(emp, date);
+  const recs = history.filter(h=>h.empId===empId && sameDay(h.ts,date)).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  const abs = getAbsence(empId, date);
+  const detail = document.getElementById(`cal-detail-${empId}`); if (!detail) return;
+
+  let html = `<div class="card"><p class="fw-600" style="margin-bottom:8px">${fmtDateLong(dateIso)}</p>`;
+  if (abs) {
+    const icons = {vacation:'🌴',medical:'🏥',personal:'👤',dayOff:'💤',holiday:'⭐'};
+    const labels = {vacation:'Vacaciones',medical:'Incapacidad',personal:'Permiso',dayOff:'Dia libre',holiday:'Feriado'};
+    html += `<div class="emp-status"><span style="font-size:20px">${icons[abs.type]}</span>
+      <span>${labels[abs.type]}</span></div>
+      <p class="text-xs text-muted" style="margin-top:4px">${fmtDate(abs.start)} - ${fmtDate(abs.end)}</p>
+      <button class="btn btn-surface btn-sm" style="margin-top:8px;color:var(--red)"
+        onclick="absences=absences.filter(a=>a.id!=='${abs.id}');saveData();showCalDay('${empId}','${dateIso}');renderCalGrid('${empId}')">
+        Eliminar</button>`;
+  } else if (recs.length > 0) {
+    recs.forEach(r => {
+      html += `<div class="emp-status" style="margin-bottom:6px">
+        <div class="dot ${r.type==='in'?'dot-green':'dot-red'}"></div>
+        <span>${r.type==='in'?'Entrada':'Salida'}</span>
+        <span class="text-muted" style="margin-left:auto">${fmtTime(r.ts)}</span>
+      </div>`;
+    });
+    const w = workedTime(empId, date);
+    if (w) html += `<div class="divider"></div><div class="flex-between"><span class="text-muted text-sm">Total</span><span class="fw-600 text-accent">${w.toFixed(1)}h</span></div>`;
+  } else {
+    html += `<p class="text-sm text-muted">${date>t?'Dia programado':'Sin actividad'}</p>`;
+    if (date <= t) {
+      html += `<button class="btn btn-surface btn-sm" style="margin-top:8px"
+        onclick="document.getElementById('absEmpId').value='${empId}';document.getElementById('absStart').value='${date.toISOString().split('T')[0]}';document.getElementById('absEnd').value='${date.toISOString().split('T')[0]}';document.getElementById('absNotes').value='';document.getElementById('absApproved').classList.add('on');openModal('absenceModal')">
+        + Agregar ausencia</button>`;
+    }
+  }
+  html += '</div>';
+  detail.innerHTML = html;
+}
+
+// ── RENDER DASHBOARD ──────────────────────────────────────────────────────
+function renderDashboard() {
+  document.getElementById('dashDate').textContent = new Date().toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const active = employees.filter(e=>!e.archived);
+  const t = new Date();
+  const present = active.filter(e=>history.some(h=>h.empId===e.id && sameDay(h.ts,t)));
+  const onVac = active.filter(e=>getAbsence(e.id,t)?.type==='vacation');
+  const onMed = active.filter(e=>getAbsence(e.id,t)?.type==='medical');
+
+  document.getElementById('statGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-icon">👥</div>
+      <div class="stat-value" style="color:var(--accent)">${active.length}</div>
+      <div class="stat-label">Empleados</div></div>
+    <div class="stat-card"><div class="stat-icon">✅</div>
+      <div class="stat-value" style="color:var(--green)">${present.length}</div>
+      <div class="stat-label">Presentes hoy</div></div>
+    <div class="stat-card"><div class="stat-icon">🌴</div>
+      <div class="stat-value" style="color:var(--orange)">${onVac.length}</div>
+      <div class="stat-label">Vacaciones</div></div>
+    <div class="stat-card"><div class="stat-icon">🏥</div>
+      <div class="stat-value" style="color:var(--red)">${onMed.length}</div>
+      <div class="stat-label">Incapacitados</div></div>
+  `;
+
+  // Alerts
+  const alerts = [];
+  for (const emp of active) {
+    const dt = dayType(emp, t);
+    if (dt.type==='missingRecord') alerts.push({emp, msg:'No ha registrado entrada hoy', icon:'⚠️', color:'var(--orange)'});
+    else if (dt.type==='absent') {
+      const labels = {vacation:'De vacaciones',medical:'En incapacidad',personal:'Permiso personal',dayOff:'Dia libre',holiday:'Feriado'};
+      alerts.push({emp, msg:labels[dt.subtype]||dt.subtype, icon:{vacation:'🌴',medical:'🏥',personal:'👤',dayOff:'💤',holiday:'⭐'}[dt.subtype], color:'var(--text2)'});
+    }
+  }
+  const alertsEl = document.getElementById('alertsSection');
+  if (alerts.length > 0) {
+    alertsEl.innerHTML = `<p class="section-title">Alertas de hoy <span style="background:rgba(239,68,68,.15);color:var(--red);padding:2px 8px;border-radius:10px;font-size:11px">${alerts.length}</span></p>` +
+      alerts.map(a=>`
+        <div class="alert-item">
+          <div class="alert-icon" style="background:${a.color}22">${a.icon}</div>
+          <div>
+            <div class="fw-600 text-sm">${a.emp.name}</div>
+            <div class="text-xs text-muted">${a.msg}</div>
+          </div>
+        </div>`).join('');
+  } else {
+    alertsEl.innerHTML = `<div class="card" style="text-align:center;color:var(--green)">
+      <div style="font-size:32px;margin-bottom:8px">✅</div>
+      <div class="fw-600">Todo en orden</div>
+      <div class="text-xs text-muted">No hay alertas</div></div>`;
+  }
+
+  // Present today
+  const presentEl = document.getElementById('presentSection');
+  if (present.length > 0) {
+    presentEl.innerHTML = `<p class="section-title" style="margin-top:16px">Presentes hoy</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">` +
+      present.map(e=>`
+        <div style="text-align:center;cursor:pointer" onclick="openDetail('${e.id}')">
+          <div class="avatar" style="width:44px;height:44px;font-size:14px;margin:0 auto 4px">
+            ${e.photo?`<img src="${e.photo}">`:initials(e.name)}
+          </div>
+          <div style="font-size:10px;max-width:50px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${e.name.split(' ')[0]}</div>
+        </div>`).join('') + '</div>';
+  } else { presentEl.innerHTML = ''; }
+}
+
+// ── RENDER EMPLOYEES ──────────────────────────────────────────────────────
+function renderEmployees(search='') {
+  const active = employees.filter(e=>!e.archived);
+  const filtered = search ? active.filter(e=>
+    e.name.toLowerCase().includes(search.toLowerCase()) ||
+    e.position.toLowerCase().includes(search.toLowerCase())
+  ) : active;
+  document.getElementById('empCount').textContent = `${active.length} empleado${active.length!==1?'s':''}`;
+  const list = document.getElementById('employeeList');
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">👥</div>
+      <h3>${search?'Sin resultados':'Sin empleados'}</h3>
+      <p>${search?'Prueba con otro nombre':'Agrega tu primer empleado para comenzar'}</p>
+    </div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(emp => {
+    const last = lastAction(emp.id);
+    const worked = workedTime(emp.id, new Date());
+    const statusColor = last ? (last.type==='in'?'dot-green':'dot-red') : 'dot-gray';
+    const statusText = last ? `${last.type==='in'?'Entrada':'Salida'} ${fmtTime(last.ts)}${worked?' · '+worked.toFixed(1)+'h':''}` : 'Sin registro hoy';
+    return `
+      <div class="emp-card" onclick="openDetail('${emp.id}')">
+        <div class="avatar">${emp.photo?`<img src="${emp.photo}">`:initials(emp.name)}</div>
+        <div class="emp-info">
+          <div class="emp-name">${emp.name}</div>
+          <div class="emp-role">${emp.position}</div>
+          <div class="emp-status">
+            <div class="dot ${statusColor}"></div>
+            <span style="color:var(--text2)">${statusText}</span>
+          </div>
+        </div>
+        <div class="emp-actions" onclick="event.stopPropagation()">
+          <button class="icon-btn icon-btn-green" onclick="register('${emp.id}','in')">↗</button>
+          <button class="icon-btn icon-btn-red"   onclick="register('${emp.id}','out')">↙</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── RENDER HISTORY ────────────────────────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (history.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🕐</div>
+      <h3>Sin registros</h3>
+      <p>Cuando registres entradas o salidas apareceran aqui</p>
+    </div>`; return;
+  }
+  const groups = {};
+  history.forEach(h => {
+    const key = new Date(h.ts).toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'});
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(h);
+  });
+  list.innerHTML = Object.entries(groups).map(([day, recs]) => `
+    <div class="history-day">
+      <div class="history-day-label">${day}</div>
+      ${recs.map(r=>`
+        <div class="history-item">
+          <span style="font-size:18px">${r.type==='in'?'✅':'🔴'}</span>
+          <div>
+            <div class="history-type">${r.type==='in'?'Entrada':'Salida'}</div>
+            <div class="history-name">${r.empName}</div>
+          </div>
+          <div class="history-time">${fmtTime(r.ts)}</div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+// ── RENDER REPORT ─────────────────────────────────────────────────────────
+function changeReportMonth(dir) {
+  reportMonth = new Date(reportMonth.getFullYear(), reportMonth.getMonth()+dir, 1);
+  renderReport();
+}
+
+function renderReport() {
+  const label = reportMonth.toLocaleDateString('es',{month:'long',year:'numeric'});
+  document.getElementById('reportMonthLabel').textContent = label;
+  document.getElementById('reportMonthTitle').textContent = label;
+  const year = reportMonth.getFullYear(), month = reportMonth.getMonth();
+  const list = document.getElementById('reportList');
+  if (employees.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><h3>Sin datos</h3><p>Agrega empleados para ver reportes</p></div>`;
+    return;
+  }
+  list.innerHTML = employees.map(emp => {
+    const monthRecs = history.filter(h => {
+      const d = new Date(h.ts);
+      return h.empId===emp.id && d.getFullYear()===year && d.getMonth()===month;
+    });
+    const workedDays = new Set(monthRecs.map(h=>new Date(h.ts).toDateString()));
+    let totalHours = 0;
+    for (const dayStr of workedDays) {
+      const w = workedTime(emp.id, new Date(dayStr));
+      if (w) totalHours += w;
+    }
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    let lateDays=0, absCount=0;
+    for(let d=1;d<=daysInMonth;d++){
+      const date = new Date(year,month,d);
+      if(date>new Date()) continue;
+      const dow = date.getDay();
+      const sch = emp.schedules?.[dow];
+      if(!sch?.enabled) continue;
+      const recs = history.filter(h=>h.empId===emp.id&&sameDay(h.ts,date)).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+      const abs = getAbsence(emp.id,date);
+      if(recs.length===0 && !abs){ absCount++; continue; }
+      if(recs.length>0){
+        const entrada = recs.find(h=>h.type==='in');
+        if(entrada){
+          const [eh,em] = sch.entry.split(':').map(Number);
+          const expected = new Date(date); expected.setHours(eh,em+10,0,0);
+          if(new Date(entrada.ts) > expected) lateDays++;
+        }
+      }
+    }
+    const vacUsed = vacationUsed(emp.id);
+    const vacLeft = Math.max(0,(emp.vacationWeeks||4)*5-vacUsed);
+    const estPay = emp.payType==='hourly' ? totalHours*emp.rate : emp.rate;
+    const attendance = workedDays.size+absCount > 0 ? (workedDays.size/(workedDays.size+absCount)*100).toFixed(0) : 0;
+    return `
+      <div class="card" style="margin-bottom:12px">
+        <div class="emp-card" style="padding:0;background:none;border:none;margin-bottom:12px;box-shadow:none">
+          <div class="avatar" style="width:40px;height:40px;font-size:14px">${emp.photo?`<img src="${emp.photo}">`:initials(emp.name)}</div>
+          <div class="emp-info">
+            <div class="emp-name">${emp.name}</div>
+            <div class="emp-role">${emp.position}</div>
+          </div>
+        </div>
+        <div class="report-row"><span class="text-muted">Horas trabajadas</span><span class="report-val text-accent">${totalHours.toFixed(1)}h</span></div>
+        <div class="report-row"><span class="text-muted">Dias trabajados</span><span class="report-val text-green">${workedDays.size}</span></div>
+        <div class="report-row"><span class="text-muted">Llegadas tarde</span><span class="report-val text-orange">${lateDays}</span></div>
+        <div class="report-row"><span class="text-muted">Ausencias</span><span class="report-val text-red">${absCount}</span></div>
+        <div class="report-row"><span class="text-muted">Vacaciones rest.</span><span class="report-val text-orange">${vacLeft}d</span></div>
+        ${emp.rate > 0 ? `<div class="report-row"><span class="text-muted">Estimado pago</span><span class="report-val text-green">$${estPay.toFixed(2)}</span></div>` : ''}
+        <div style="margin-top:8px">
+          <div class="flex-between text-xs text-muted"><span>Asistencia</span><span>${attendance}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${attendance}%"></div></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── CSV EXPORT ─────────────────────────────────────────────────────────────
+function exportCSV() {
+  const year = reportMonth.getFullYear(), month = reportMonth.getMonth();
+  let csv = 'Empleado,Cargo,Fecha,Entrada,Salida,Horas,Estado\n';
+  employees.forEach(emp => {
+    const recs = history.filter(h=>{
+      const d=new Date(h.ts);
+      return h.empId===emp.id && d.getFullYear()===year && d.getMonth()===month;
+    });
+    const days = [...new Set(recs.map(h=>new Date(h.ts).toDateString()))];
+    days.forEach(dayStr => {
+      const date = new Date(dayStr);
+      const dayRecs = recs.filter(h=>sameDay(h.ts,date)).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+      const entrada = dayRecs.find(h=>h.type==='in');
+      const salida  = [...dayRecs].reverse().find(h=>h.type==='out');
+      const w = workedTime(emp.id, date);
+      const horasStr = w ? w.toFixed(1)+'h' : 'Incompleto';
+      let estado = '-';
+      if (entrada && emp.schedules) {
+        const dow = date.getDay();
+        const sch = emp.schedules[dow];
+        if (sch?.enabled) {
+          const [eh,em] = sch.entry.split(':').map(Number);
+          const exp = new Date(date); exp.setHours(eh,em+10,0,0);
+          estado = new Date(entrada.ts) > exp ? 'Tarde' : 'A tiempo';
+        }
+      }
+      csv += `${emp.name},${emp.position},${fmtDate(date)},${entrada?fmtTime(entrada.ts):'-'},${salida?fmtTime(salida.ts):'-'},${horasStr},${estado}\n`;
+    });
+  });
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `reporte_${reportMonth.toLocaleDateString('es',{month:'long',year:'numeric'})}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+renderDashboard();
+renderEmployees();
+renderHistory();
+renderReport();
+</script>
+
+</body>
+</html>
