@@ -265,6 +265,225 @@ input[type=date], input[type=time] { color-scheme: dark; }
 .photo-ring img { width: 100%; height: 100%; object-fit: cover; }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// ══════════════════════════════════════════
+// SUPABASE CONFIG
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'https://grztncvdsvtrwekekpss.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_hERziVqtGfUc-EYHDCJ8nQ_0TjBvNZq';
+const RESTAURANT_ID = '3f99dc38-0771-4bb6-b307-474ccc80f86e';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ══════════════════════════════════════════
+// SUPABASE DATA LAYER
+// ══════════════════════════════════════════
+
+async function sbLoadAll() {
+  try {
+    const [empsRes, attRes, absRes, shiftsRes, restRes] = await Promise.all([
+      sb.from('employees').select('*').eq('restaurant_id', RESTAURANT_ID).order('created_at'),
+      sb.from('attendance').select('*').eq('restaurant_id', RESTAURANT_ID).order('timestamp', {ascending: false}),
+      sb.from('absences').select('*').eq('restaurant_id', RESTAURANT_ID).order('created_at', {ascending: false}),
+      sb.from('shifts').select('*').eq('restaurant_id', RESTAURANT_ID),
+      sb.from('restaurants').select('*').eq('id', RESTAURANT_ID).single()
+    ]);
+
+    if (empsRes.data) {
+      DB.employees = empsRes.data.map(e => ({
+        id: e.id,
+        name: e.name,
+        last: e.last_name || '',
+        num: e.employee_number || '',
+        position: e.position || '',
+        dept: e.department || '',
+        phone: e.phone || '',
+        email: e.email || '',
+        startDate: e.start_date || '',
+        contract: e.contract_type || 'CDI',
+        payType: e.pay_type || 'hourly',
+        rate: e.hourly_rate || 0,
+        salary: e.monthly_salary || 0,
+        vacWeeks: e.vacation_weeks || 5,
+        avs: e.avs_number || '',
+        emergency: e.emergency_contact || '',
+        notes: e.notes || '',
+        status: e.status || 'active',
+        photo: e.photo_url || null,
+        color: e.color || '#4f6ef7',
+        schedules: e.schedules || {}
+      }));
+    }
+
+    if (attRes.data) {
+      DB.history = attRes.data.map(a => ({
+        id: a.id,
+        empId: a.employee_id,
+        empName: a.employee_name || '',
+        type: a.type,
+        ts: a.timestamp
+      }));
+    }
+
+    if (absRes.data) {
+      DB.absences = absRes.data.map(a => ({
+        id: a.id,
+        empId: a.employee_id,
+        type: a.type,
+        start: a.start_date,
+        end: a.end_date,
+        approved: a.approved,
+        notes: a.notes || ''
+      }));
+    }
+
+    if (shiftsRes.data) {
+      DB.shifts = {};
+      shiftsRes.data.forEach(s => {
+        DB.shifts[`${s.employee_id}_${s.shift_date}`] = {
+          type: s.shift_type,
+          in: s.start_time,
+          out: s.end_time,
+          notes: s.notes || ''
+        };
+      });
+    }
+
+    if (restRes.data) {
+      DB.settings = {
+        company: restRes.data.name || 'Mon Restaurant',
+        currency: restRes.data.currency || 'CHF',
+        lateTol: restRes.data.late_tolerance || 10,
+        maxHours: restRes.data.max_hours_week || 45,
+        lang: restRes.data.lang || 'fr'
+      };
+      lang = DB.settings.lang;
+    }
+
+    saveDB();
+    return true;
+  } catch(e) {
+    console.error('Supabase load error:', e);
+    return false;
+  }
+}
+
+async function sbSaveEmployee(emp) {
+  const row = {
+    id: emp.id,
+    restaurant_id: RESTAURANT_ID,
+    name: emp.name,
+    last_name: emp.last || '',
+    employee_number: emp.num || '',
+    position: emp.position || '',
+    department: emp.dept || '',
+    phone: emp.phone || '',
+    email: emp.email || '',
+    start_date: emp.startDate || null,
+    contract_type: emp.contract || 'CDI',
+    pay_type: emp.payType || 'hourly',
+    hourly_rate: emp.rate || 0,
+    monthly_salary: emp.salary || 0,
+    vacation_weeks: emp.vacWeeks || 5,
+    avs_number: emp.avs || '',
+    emergency_contact: emp.emergency || '',
+    notes: emp.notes || '',
+    status: emp.status || 'active',
+    photo_url: emp.photo || null,
+    color: emp.color || '#4f6ef7',
+    schedules: emp.schedules || {}
+  };
+  const { error } = await sb.from('employees').upsert(row);
+  if (error) console.error('Save employee error:', error);
+}
+
+async function sbDeleteEmployee(id) {
+  await sb.from('employees').delete().eq('id', id);
+  await sb.from('attendance').delete().eq('employee_id', id);
+  await sb.from('absences').delete().eq('employee_id', id);
+  await sb.from('shifts').delete().eq('employee_id', id);
+}
+
+async function sbRegister(empId, empName, type) {
+  const { data, error } = await sb.from('attendance').insert({
+    restaurant_id: RESTAURANT_ID,
+    employee_id: empId,
+    employee_name: empName,
+    type: type,
+    timestamp: new Date().toISOString()
+  }).select().single();
+  if (error) { console.error('Register error:', error); return null; }
+  return data;
+}
+
+async function sbSaveAbsence(abs) {
+  const { error } = await sb.from('absences').upsert({
+    id: abs.id,
+    restaurant_id: RESTAURANT_ID,
+    employee_id: abs.empId,
+    type: abs.type,
+    start_date: abs.start,
+    end_date: abs.end,
+    approved: abs.approved,
+    notes: abs.notes || ''
+  });
+  if (error) console.error('Save absence error:', error);
+}
+
+async function sbDeleteAbsence(id) {
+  await sb.from('absences').delete().eq('id', id);
+}
+
+async function sbSaveShift(key, shift) {
+  const [empId, date] = key.split('_');
+  const { error } = await sb.from('shifts').upsert({
+    restaurant_id: RESTAURANT_ID,
+    employee_id: empId,
+    shift_date: date,
+    shift_type: shift.type,
+    start_time: shift.in || null,
+    end_time: shift.out || null,
+    notes: shift.notes || ''
+  }, { onConflict: 'employee_id,shift_date' });
+  if (error) console.error('Save shift error:', error);
+}
+
+async function sbUpdateSettings(settings) {
+  await sb.from('restaurants').update({
+    name: settings.company,
+    currency: settings.currency,
+    late_tolerance: settings.lateTol,
+    max_hours_week: settings.maxHours,
+    lang: settings.lang
+  }).eq('id', RESTAURANT_ID);
+}
+
+// ══════════════════════════════════════════
+// LOADING OVERLAY
+// ══════════════════════════════════════════
+function showLoading(msg) {
+  let el = document.getElementById('loading-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'loading-overlay';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(7,8,15,0.9);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <div style="width:44px;height:44px;border:3px solid #252840;border-top-color:#4f6ef7;border-radius:50%;animation:spin .8s linear infinite"></div>
+    <div style="color:#e8e9f0;font-size:14px;font-weight:600">${msg||'Chargement...'}</div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+
+el.style.display = ‘flex’;
+}
+
+function hideLoading() {
+const el = document.getElementById(‘loading-overlay’);
+if (el) el.style.display = ‘none’;
+}
+</script>
+
 </head>
 <body>
 
@@ -969,16 +1188,19 @@ function canReg(empId, type) {
   return true;
 }
 
-function register(empId, type) {
+async function register(empId, type) {
   const emp = DB.employees.find(e=>e.id===empId);
   if(!emp) { toast(t('emp_not_found'), '#ef4444'); return; }
   if(!canReg(empId, type)) {
     toast(type==='in' ? t('already_in') : t('no_exit'), '#f59e0b'); return;
   }
-  DB.history.unshift({ id:uid(), empId, empName:fullName(emp), type, ts:new Date().toISOString() });
+  const record = { id:uid(), empId, empName:fullName(emp), type, ts:new Date().toISOString() };
+  DB.history.unshift(record);
   saveDB();
   toast((type==='in'?'✅ ':' 🔴 ') + (type==='in'?t('entry_reg'):t('exit_reg')) + ' — ' + emp.name);
   renderPage(currentPage);
+  // Save to Supabase in background
+  sbRegister(empId, fullName(emp), type).catch(e=>console.error(e));
 }
 
 const lastAction = empId => DB.history.find(h=>h.empId===empId);
@@ -1338,6 +1560,8 @@ function saveEmp() {
   saveDB(); closeModal('emp-modal');
   renderPage(currentPage);
   toast(editEmpId?t('emp_updated'):t('emp_saved'));
+  // Save to Supabase in background
+  sbSaveEmployee(data).catch(e=>console.error(e));
 }
 
 // ══════════════════════════════════════════
@@ -1633,6 +1857,7 @@ function saveShift() {
   if(!shiftEditKey) return;
   DB.shifts[shiftEditKey]={type:shiftEditType,in:document.getElementById('sh-in').value,out:document.getElementById('sh-out').value,notes:document.getElementById('sh-notes').value};
   saveDB(); closeModal('shift-modal'); renderShifts(); toast(t('shift_saved'));
+  sbSaveShift(shiftEditKey, DB.shifts[shiftEditKey]).catch(e=>console.error(e));
 }
 
 // ══════════════════════════════════════════
@@ -1710,6 +1935,7 @@ function saveAbs() {
     approved:document.getElementById('abs-approved').classList.contains('on'),
     notes:document.getElementById('abs-notes').value.trim()});
   saveDB(); closeModal('abs-modal'); renderPage(currentPage); toast(t('abs_saved'));
+  sbSaveAbsence(newAbs).catch(e=>console.error(e));
 }
 
 // ══════════════════════════════════════════
@@ -1879,7 +2105,8 @@ function deleteEmp(id) {
   DB.employees=DB.employees.filter(e=>e.id!==id);
   DB.history=DB.history.filter(h=>h.empId!==id);
   DB.absences=DB.absences.filter(a=>a.empId!==id);
-  saveDB(); closeModal('detail-modal'); renderPage(currentPage); toast(t('emp_not_found'));
+  saveDB(); closeModal('detail-modal'); renderPage(currentPage); toast(t('emp_deleted')||'Employé supprimé');
+  sbDeleteEmployee(id).catch(e=>console.error(e));
 }
 
 // ══════════════════════════════════════════
@@ -1979,14 +2206,25 @@ function handleQRScan(data) {
 // ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
-applyLang();
-renderDash();
-renderEmps();
-renderHistory();
-renderLangBar();
-renderSettings();
-document.getElementById('sb-company-name').textContent = DB.settings?.company||'Mon Restaurant';
-document.getElementById('sb-date-display').textContent = new Date().toLocaleDateString('fr-CH',{weekday:'short',day:'numeric',month:'short'});
+async function init() {
+  showLoading('Connexion à la base de données...');
+  try {
+    await sbLoadAll();
+    lang = DB.settings?.lang || 'fr';
+  } catch(e) {
+    console.warn('Offline mode - using local data');
+  }
+  hideLoading();
+  applyLang();
+  renderDash();
+  renderEmps();
+  renderHistory();
+  renderLangBar();
+  renderSettings();
+  document.getElementById('sb-company-name').textContent = DB.settings?.company||'Mon Restaurant';
+  document.getElementById('sb-date-display').textContent = new Date().toLocaleDateString('fr-CH',{weekday:'short',day:'numeric',month:'short'});
+}
+init();
 </script>
 
 </body>
